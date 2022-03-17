@@ -1,0 +1,54 @@
+- name: playbook for simple 10 GB partition
+  hosts: localhost
+  become: true
+  tasks:
+    - name: create partition
+      parted:
+        device: /dev/sdb
+        number: 1
+        flags: [ lvm ]
+        state: present
+    
+    - name: task for creating volume group
+      lvg:
+        vg: test-vg
+        pvs: /dev/sdb1
+
+    - name: Install lvm2 dependency
+      package:
+        name: lvm2
+        state: present
+
+    - name: Remove the logical volume.
+      lvol:
+        vg: test-vg
+        lv: test-lv
+        state: absent
+        force: yes
+
+    - name: task for creating logical volume
+      lvol:
+        vg: test-vg
+        lv:  test-lv
+        size: 100%FREE
+        force: false
+        shrink: true
+
+    - name: Create directory test-lvm if does not exist
+      file:
+        path: /test-lvm
+        state: directory
+        mode: '0755'
+    
+    - name: format the ext4 filesystem
+      filesystem:
+        fstype: ext4
+        dev: /dev/test-vg/test-lv
+    
+    - name: mount the lv on /test-lvm
+      mount:
+        path: /test-lvm
+        src: /dev/test-vg/test-lv
+        fstype: ext4
+        state: mounted
+      
